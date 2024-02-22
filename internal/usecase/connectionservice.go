@@ -1,6 +1,7 @@
 package usecase
 
 import (
+	"task/internal/domain/models"
 	"task/internal/domain/repositories"
 
 	"github.com/sirupsen/logrus"
@@ -23,18 +24,44 @@ func NewConnectionService(repo repositories.ConnectionRepository, logger *logrus
 }
 
 func (cs *connectionService) CheckDupes(userID1, userID2 int64) (bool, error) {
-	connections1, connections2, err := cs.repo.FindConnectionsByUserIDs(userID1, userID2)
-	if err != nil {
+	ch1 := make(chan []models.Connection)
+	ch2 := make(chan []models.Connection)
+	errCh := make(chan error)
+
+	go func() {
+		connections, err := cs.repo.FindConnectionsByUserID(userID1)
+		if err != nil {
+			errCh <- err
+			return
+		}
+		ch1 <- connections
+	}()
+
+	go func() {
+		connections, err := cs.repo.FindConnectionsByUserID(userID2)
+		if err != nil {
+			errCh <- err
+			return
+		}
+		ch2 <- connections
+	}()
+
+	connections1 := <-ch1
+	connections2 := <-ch2
+
+	select {
+	case err := <-errCh:
 		return false, err
+	default:
 	}
 
-	ipMap := make(map[string]bool)
+	ipMap := make(map[string]struct{})
 	for _, conn := range connections1 {
-		ipMap[conn.IPAddr] = true
+		ipMap[conn.IPAddr] = struct{}{}
 	}
 
 	for _, conn := range connections2 {
-		if ipMap[conn.IPAddr] {
+		if _, found := ipMap[conn.IPAddr]; found {
 			return true, nil
 		}
 	}

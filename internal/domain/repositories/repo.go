@@ -12,6 +12,7 @@ import (
 
 type ConnectionRepository interface {
 	FindConnectionsByUserIDs(userID1, userID2 int64) ([]models.Connection, []models.Connection, error)
+	FindConnectionsByUserID(userID int64) ([]models.Connection, error)
 }
 
 type connectionRepository struct {
@@ -71,4 +72,39 @@ func (cr *connectionRepository) FindConnectionsByUserIDs(userID1, userID2 int64)
 	}
 
 	return connections1, connections2, nil
+}
+
+func (cr *connectionRepository) FindConnectionsByUserID(userID int64) ([]models.Connection, error) {
+	query := `
+	SELECT DISTINCT ip_addr FROM conn_log
+	WHERE user_id = $1;
+`
+	rows, err := cr.db.Query(query, userID)
+	if err != nil {
+		cr.log.Error("Failed to execute query:", err)
+		return nil, err
+	}
+	defer rows.Close()
+
+	var connections []models.Connection
+
+	for rows.Next() {
+		var ipAddr string
+		if err := rows.Scan(&ipAddr); err != nil {
+			cr.log.Error("Failed to scan row:", err)
+			return nil, err
+		}
+
+		connection := models.Connection{
+			UserID: userID,
+			IPAddr: ipAddr,
+		}
+		connections = append(connections, connection)
+	}
+	if err := rows.Err(); err != nil {
+		cr.log.Error("Error occurred while iterating through rows:", err)
+		return nil, err
+	}
+
+	return connections, nil
 }
