@@ -1,0 +1,17 @@
+version: '3.3'
+services:
+  db:
+    container_name: test_db
+    image: postgres:13.4
+    restart: always
+    environment:
+      POSTGRES_USER: root
+      POSTGRES_PASSWORD: root
+      PGDATA: /pgdata
+    ports:
+      - 5400:5432
+    volumes:
+      - ./migration.sql:/docker-entrypoint-initdb.d/migration.sql
+
+volumes:
+  postgres_data:

@@ -1,0 +1,10 @@
+logger:
+  logFile: "app.log"
+
+database:
+  host: "localhost"
+  port: 5430
+  user: "mplspsql"
+  password: "mplspsql"
+  dbname: "mplspsql"
+  sslmode: "disable"
